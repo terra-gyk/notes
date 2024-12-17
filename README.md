@@ -1,2 +1,2 @@
-# TinyCode
+# Notes
 some test
