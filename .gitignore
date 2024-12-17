@@ -247,3 +247,6 @@ docs/dev
 
 # test file
 test
+
+# core
+*.core
