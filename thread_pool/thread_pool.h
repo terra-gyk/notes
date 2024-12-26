@@ -37,7 +37,7 @@ private:
 
 template<typename F,typename... Args>
 auto thread_pool::execute(F&& func,Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type>{
-  
+  using return_type = typename std::result_of<F(Args...)>::type;
 }
 
 

@@ -250,3 +250,4 @@ test
 
 # core
 *.core
+core*
