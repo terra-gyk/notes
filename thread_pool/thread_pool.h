@@ -17,6 +17,7 @@ public:
 
 
 private:
+  using worker_queue = std::vector<std::thread>;
   using task_queue = std::queue<std::function<void()>>;
 
   /**
@@ -30,6 +31,7 @@ private:
   template<typename F,typename... Args>
   auto execute(F&& func,Args&&... args) -> std::future<typename std::result_of<F(Args...)>::type>;
 
+  worker_queue              workers_;
   task_queue                task_queue_;
   std::mutex                mutex_;
   std::condition_variable   condition_;
