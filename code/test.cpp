@@ -1,20 +1,22 @@
-#include <spdlog/spdlog.h>
-#include <gtest/gtest.h>
-
+#include <iostream>
+#include <fstream>
 #include <future>
+#include <functional>
+#include <chrono>
 
-int sum(int num1, int num2){
+int sum(int num1,int num2)
+{
   return num1 + num2;
 }
 
-TEST(sum_test,sum){
-  ASSERT_EQ(sum(1,2),3);
-}
+int main()
+{
+  int num = 1;
+  printf("num is: %d\n",num);
+  if(num == 5){
+  }else{
+    num++;
+  }
 
-int main(){
-
-  testing::InitGoogleTest();
-  return RUN_ALL_TESTS();
-  // return 0;
+  return 0;
 }
- 
