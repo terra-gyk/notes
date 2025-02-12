@@ -1,0 +1,6 @@
+// 取消暂存的文件
+git reset HEAD CONTRIBUTING.md
+
+
+// 撤消对文件的修改
+git checkout -- CONTRIBUTING.md
