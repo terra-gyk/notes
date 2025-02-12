@@ -1,21 +1,23 @@
 #include <iostream>
-#include <thread>
-#include <functional>
-#include <memory>
+#include <set>
 
-class node : public std::enable_shared_from_this<node>
-{
-public:
-  std::shared_ptr<node> get_shared()
-  {
-    return shared_from_this();
-  }
-};
+int main() {
 
-int main()
-{
-  auto node_p = std::make_shared<node>();
+    std::set<std::string> set_mm;
+    set_mm.insert("DISTRIBUTE_LOCK:HttpAgentNEV:tokenthread");
 
-  auto tt = node_p->get_shared();
-  return 0;
+    std::cout << set_mm.size() << "\n";
+
+    auto iter = set_mm.find("DISTRIBUTE_LOCK:HttpAgentNEV:tokenthread");
+    if(iter != set_mm.end())
+    {
+        std::cout << "earse \n";
+        set_mm.erase(iter);
+    }
+
+    std::cout << set_mm.size() << "\n";
+
+
+
+    return 0;
 }

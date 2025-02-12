@@ -11,4 +11,4 @@ HEADER_FILES=$(find . -type f -name "*.h")
 echo ${CPP_FILES}
 
 # -lspdlog -lgtest -lgmock -lssl -lcrypto
-g++ -std=c++23 -O3 -g ${CPP_FILES} -o test && ./test
+g++ -std=c++17 -O3 -g ${CPP_FILES} -o test && ./test
