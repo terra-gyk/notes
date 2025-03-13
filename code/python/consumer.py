@@ -9,12 +9,12 @@ channel = connection.channel()
 
 
 # 声明队列
-channel.queue_declare(queue='test')
+# channel.queue_declare(queue='log_1')
 # 定义回调函数，用于处理接收到的消息
 def callback(ch, method, properties, body):
     print(f" [x] 接收到消息: {body.decode()}")
 # 开始消费消息
-channel.basic_consume(queue='test',
+channel.basic_consume(queue='log_warn',
                       auto_ack=True,
                       on_message_callback=callback)
 print(' [*] 正在等待消息。按 CTRL+C 退出。')
