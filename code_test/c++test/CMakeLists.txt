@@ -1,27 +1,23 @@
 cmake_minimum_required(VERSION 3.11)
 project(test CXX)
 
-if(NOT TARGET spdlog)
-    find_package(spdlog REQUIRED)
-endif()
-
 find_library(zookeeper_lib zookeeper_mt)
 
 if(NOT zookeeper_lib)
     message(FATAL_ERROR "ZooKeeper library not found.")
 endif()
 
-if(NOT zookeeper_lib)
-    message(FATAL_ERROR "ZooKeeper library not found.")
-endif()
+# 查找 librdkafka 库
+set(rdkafka_lib rdkafka++)
 
+find_package(spdlog REQUIRED)
 find_package(leveldb REQUIRED) 
 
 # ---------------------------------------------------------------------------------------
 # Example of using pre-compiled library
 # ---------------------------------------------------------------------------------------
 add_executable(test test.cpp)
-target_link_libraries(test PRIVATE ${zookeeper_lib} spdlog::spdlog leveldb::leveldb $<$<BOOL:${MINGW}>:ws2_32>)
+target_link_libraries(test PRIVATE ${zookeeper_lib} ${rdkafka_lib} spdlog::spdlog leveldb::leveldb $<$<BOOL:${MINGW}>:ws2_32>)
 
 # ---------------------------------------------------------------------------------------
 # Example of using header-only library
