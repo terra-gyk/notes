@@ -11,6 +11,18 @@ The previous articles in this series cover:
 
 In this post I look at the mechanics of how the compiler translates coroutine code that you write into compiled code and how you can customise the behaviour of a coroutine by defining your own **Promise** type.
 
+---
+这篇帖子是关于C++协程技术规范（[N4736](http://wg21.link/N4736)）系列的第三篇。
+
+该系列之前的两篇文章涵盖了：
+
+- [协程理论](https://lewissbaker.github.io/2017/09/25/coroutine-theory)
+- [理解`operator co_await`](https://lewissbaker.github.io/2017/11/17/understanding-operator-co-await)
+
+在这篇文章中，我将探讨编译器如何将你编写的协程代码转换为编译后的代码，以及如何通过定义自己的**Promise**类型来自定义协程的行为。
+
+---
+
 ## Coroutine Concepts
 
 The Coroutines TS adds three new keywords: `co_await`, `co_yield` and `co_return`. Whenever you use one of these coroutine keywords in the body of a function this triggers the compiler to compile this function as a coroutine rather than as a normal function.
@@ -20,6 +32,17 @@ The compiler applies some fairly mechanical transformations to the code that you
 In the previous post I described the first of two new interfaces that the Coroutines TS introduces: The **Awaitable** interface. The second interface that the TS introduces that is important to this code transformation is the **Promise** interface.
 
 The **Promise** interface specifies methods for customising the behaviour of the coroutine itself. The library-writer is able to customise what happens when the coroutine is called, what happens when the coroutine returns (either by normal means or via an unhandled exception) and customise the behaviour of any `co_await` or `co_yield` expression within the coroutine.
+
+---
+协程技术规范（Coroutines TS）添加了三个新关键字：`co_await`、`co_yield`和`co_return`。每当你在函数体中使用这些协程关键字之一时，这会触发编译器将该函数编译为协程而不是普通函数。
+
+编译器对所写的代码应用了一些相当机械的转换，将其转变为一个状态机，从而使函数能够在特定点挂起执行，然后稍后恢复执行。
+
+在上一篇文章中，我描述了协程技术规范引入的两个新接口中的第一个：**Awaitable**接口。TS引入的对这种代码转换至关重要的第二个接口是**Promise**接口。
+
+**Promise**接口指定了用于自定义协程本身行为的方法。库作者能够自定义当协程被调用时发生什么，当协程返回时（无论是通过正常方式还是由于未处理的异常）发生什么，并自定义协程内任何`co_await`或`co_yield`表达式的行为。
+
+---
 
 ## Promise objects
 
@@ -35,6 +58,16 @@ In the following examples, assume that the promise object created in the corouti
 
 When you write a coroutine function that has a body, `<body-statements>`, which contains one of the coroutine keywords (`co_return`, `co_await`, `co_yield`) then the body of the coroutine is transformed to something (roughly) like the following:
 
+---
+每次调用协程函数时，都会在协程框架内构造一个promise对象实例。
+
+编译器在协程执行的关键点生成对promise对象上某些方法的调用。
+
+在以下示例中，假设为特定协程调用创建的协程框架中的promise对象是promise。
+
+当你编写一个包含协程体<body-statements>的协程函数时，该协程体包含其中一个协程关键字（co_return、co_await、co_yield），则协程体会被转换为类似以下的内容：
+
+---
 ```c++
 {
   co_await promise.initial_suspend();
@@ -82,6 +115,39 @@ Once execution propagates outside of the coroutine body then the coroutine frame
 
 When execution first reaches a `<return-to-caller-or-resumer>` point inside a `co_await` expression, or if the coroutine runs to completion without hitting a `<return-to-caller-or-resumer>` point, then the coroutine is either suspended or destroyed and the return-object previously returned from the call to `promise.get_return_object()` is then returned to the caller of the coroutine.
 
+---
+当调用协程函数时，在执行协程体中的代码之前会执行一些步骤，这些步骤与普通函数的执行有所不同。以下是这些步骤的概述（我将在下面详细说明每个步骤）：
+
+1. **分配协程框架**：使用`operator new`分配协程框架（可选）。
+2. **复制函数参数**：将任何函数参数复制到协程框架中。
+3. **构造Promise对象**：调用类型为`P`的promise对象的构造函数。
+4. **获取返回对象**：调用`promise.get_return_object()`方法以获取在协程首次挂起时返回给调用者的对象，并将其保存为局部变量。
+5. **初始挂起**：调用`promise.initial_suspend()`方法，并对结果执行`co_await`。
+6. **开始执行协程体**：当`co_await promise.initial_suspend()`表达式恢复（可能是立即恢复或异步恢复）时，协程开始执行你编写的协程体语句。
+
+当执行到达`co_return`语句时，会执行一些额外的步骤：
+
+1. **返回值处理**：调用`promise.return_void()`或`promise.return_value(<expr>)`。
+2. **销毁自动存储期变量**：按创建顺序的逆序销毁所有具有自动存储期的变量。
+3. **最终挂起**：调用`promise.final_suspend()`并对结果执行`co_await`。
+
+如果执行由于未处理的异常离开`<body-statements>`，则会执行以下步骤：
+
+1. **捕获异常并处理**：在catch块中捕获异常并调用`promise.unhandled_exception()`。
+2. **最终挂起**：调用`promise.final_suspend()`并对结果执行`co_await`。
+
+一旦执行传播到协程体之外，协程框架就会被销毁。销毁协程框架涉及以下步骤：
+
+1. **销毁Promise对象**：调用promise对象的析构函数。
+2. **销毁函数参数副本**：调用函数参数副本的析构函数。
+3. **释放内存**：调用`operator delete`释放协程框架使用的内存（可选）。
+4. **返回控制权**：将控制权转移回调用者或恢复者。
+
+当执行首次到达`co_await`表达式中的`<return-to-caller-or-resumer>`点，或者如果协程运行至完成而没有遇到`<return-to-caller-or-resumer>`点，则协程要么被挂起要么被销毁，并且之前从`promise.get_return_object()`调用返回的返回对象将返回给协程的调用者。
+
+这些步骤确保了协程能够正确地管理其生命周期、状态和资源，同时允许库作者通过自定义Promise对象来控制协程的具体行为。
+
+---
 ### Allocating a coroutine frame
 
 First, the compiler generates a call to `operator new` to allocate memory for the coroutine frame.
@@ -104,6 +170,31 @@ The Coroutines TS does not yet specify any situations in which the allocation el
 There is a fallback, however, that can be used in lieu of exceptions for handling failure to allocate the coroutine frame. This can be necessary when operating in environments where exceptions are not allowed, such as embedded environments or high-performance environments where the overhead of exceptions is not tolerated.
 
 If the promise type provides a static `P::get_return_object_on_allocation_failure()` member function then the compiler will generate a call to the `operator new(size_t, nothrow_t)` overload instead. If that call returns `nullptr` then the coroutine will immediately call `P::get_return_object_on_allocation_failure()` and return the result to the caller of the coroutine instead of throwing an exception.
+
+---
+首先，编译器生成对`operator new`的调用以分配协程框架所需的内存。
+
+如果Promise类型`P`定义了自定义的`operator new`方法，则调用该方法；否则，调用全局的`operator new`。
+
+这里有几个重要的注意事项：
+
+- 传递给`operator new`的大小不是`sizeof(P)`，而是整个协程框架的大小。这个大小由编译器根据参数的数量和大小、Promise对象的大小、局部变量的数量和大小以及其他编译器特定的管理协程状态所需存储自动确定。
+  
+- 编译器可以在某些情况下优化掉对`operator new`的调用：
+  - 如果编译器能够确定协程框架的生命周期严格嵌套在调用者的生命周期内；
+  - 并且编译器能够在调用点看到所需的协程框架大小。
+
+  在这些情况下，编译器可以在调用者的激活帧（无论是栈帧还是协程帧部分）中为协程框架分配存储空间。
+
+协程技术规范（Coroutines TS）目前还没有指定任何保证分配省略的情况，因此你仍然需要编写代码，假设协程框架的分配可能会失败并抛出`std::bad_alloc`异常。这也意味着除非你接受在协程无法分配内存时调用`std::terminate()`，否则通常不应该将协程函数声明为`noexcept`。
+
+然而，有一个备用方案可以用于处理协程框架分配失败的情况，而不需要使用异常。这在不允许使用异常的环境中是必要的，例如嵌入式环境或高性能环境中，其中异常的开销是不可容忍的。
+
+如果Promise类型提供了静态成员函数`P::get_return_object_on_allocation_failure()`，那么编译器会生成对`operator new(size_t, nothrow_t)`重载的调用。如果该调用返回`nullptr`，则协程将立即调用`P::get_return_object_on_allocation_failure()`，并将结果返回给协程的调用者，而不是抛出异常。 
+
+通过这种方式，即使在不允许使用异常的环境中，也可以安全地处理协程框架分配失败的情况。
+
+---
 
 #### Customising coroutine frame memory allocation
 
