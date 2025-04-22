@@ -79,21 +79,21 @@ The **Awaitable** interface specifies methods that control the semantics of a `c
 I’ll be covering details of the **Promise** interface in a future post, but for now let’s look at the **Awaitable** interface.
 
 ---
-有趣的是，协程技术规范（Coroutines TS）实际上并没有定义协程的语义。它没有定义如何生成返回给调用者的值。它没有定义如何处理传递给 co_return 语句的返回值，或者如何处理从协程中传播出来的异常。它也没有定义应在哪个线程上恢复协程。
+有趣的是，协程技术规范（Coroutines TS）实际上并没有定义协程的语义。它没有定义如何产生返回给调用者的值。它没有定义如何处理传递给`co_return`语句的返回值或如何处理从协程传播出来的异常。它也没有定义应在哪个线程上恢复协程。
 
-相反，它规定了一种通用机制，通过实现符合特定接口的类型，库代码可以自定义协程的行为。然后，编译器生成调用库提供的类型的实例上的方法的代码。这种方法类似于库编写者通过定义 begin()/end() 方法和一个 iterator 类型来自定义基于范围的 for 循环行为的方式。
+相反，它规定了一种通用机制，通过实现符合特定接口的类型，允许库代码自定义协程的行为。然后，编译器生成调用库提供的类型的实例上的方法的代码。这种方法类似于库作者通过定义`begin()`/`end()`方法和一个`iterator`类型来定制基于范围的for循环的行为的方式。
 
-协程技术规范不对协程的机制规定任何特定语义这一事实使其成为一个强大的工具。它允许库编写者为各种不同的目的定义许多不同种类的协程。
+协程技术规范不为协程的机制规定任何特定语义，这一事实使其成为一个强大的工具。它允许库作者定义许多不同种类的协程，适用于各种不同的目的。
 
-例如，你可以定义一个异步生成单个值的协程，或者定义一个惰性生成一系列值的协程，或者定义一个通过在遇到 nullopt 值时提前退出来简化控制流以使用 optional<T> 值的协程。
+例如，你可以定义一个异步生成单个值的协程，或者定义一个惰性生成一系列值的协程，或者定义一个简化控制流的协程，通过在遇到`nullopt`值时提前退出来消费`optional<T>`值。
 
-协程技术规范定义了两种接口：Promise 接口和 Awaitable 接口。
+协程技术规范定义了两种接口：**Promise**接口和**Awaitable**接口。
 
-Promise 接口指定了用于自定义协程本身行为的方法。库编写者能够自定义当协程被调用时发生什么，当协程返回时（无论是正常方式还是通过未处理的异常）发生什么，以及自定义协程内任何 co_await 或 co_yield 表达式的行为。
+**Promise**接口指定了用于自定义协程本身行为的方法。库作者能够自定义当协程被调用时发生什么，当协程返回时发生什么（无论是通过正常方式还是由于未处理的异常），并自定义协程内任何`co_await`或`co_yield`表达式的行为。
 
-Awaitable 接口指定了控制 co_await 表达式的语义的方法。当一个值被 co_await 时，代码会被转换成一系列对可等待对象上的方法的调用，这些方法允许其指定：是否挂起当前协程，在挂起后执行一些逻辑以调度协程以便稍后恢复，以及在协程恢复后执行一些逻辑以生成 co_await 表达式的结果。
+**Awaitable**接口指定了控制`co_await`表达式的语义的方法。当一个值被`co_await`时，代码会被转换成对可等待对象上的一系列方法调用，这些方法允许它指定：是否挂起当前协程，在挂起后执行一些逻辑以安排协程稍后恢复，并在协程恢复后执行一些逻辑以产生`co_await`表达式的结果。
 
-我将在以后的文章中详细介绍 Promise 接口，但目前让我们先看看 Awaitable 接口。
+我将在以后的文章中详细介绍**Promise**接口，但现在让我们看看**Awaitable**接口。
 
 ---
 
@@ -118,23 +118,23 @@ Note that a type can be both an **Awaitable** type and an **Awaiter** type.
 When the compiler sees a `co_await <expr>` expression there are actually a number of possible things it could be translated to depending on the types involved.
 
 ---
-co_await 操作符是一个可以应用于值的新一元操作符。例如：co_await someValue。
+`co_await`操作符是一个可以应用于值的新一元操作符。例如：`co_await someValue`。
 
-co_await 操作符只能在协程的上下文中使用。尽管这有点同义反复，因为任何包含 co_await 操作符的函数体，根据定义，都会被编译为协程。
+`co_await`操作符只能在协程的上下文中使用。尽管这有点同义反复，因为任何包含`co_await`操作符的函数体，根据定义，都会被编译为协程。
 
-支持 co_await 操作符的类型称为 Awaitable 类型。
+支持`co_await`操作符的类型被称为**Awaitable**类型。
 
-请注意，是否可以对某个类型应用 co_await 操作符可能取决于 co_await 表达式出现的上下文。用于协程的承诺类型可以通过其 await_transform 方法改变协程内 co_await 表达式的含义（稍后会详细介绍）。
+请注意，是否可以对某种类型应用`co_await`操作符可能取决于`co_await`表达式出现的上下文。用于协程的Promise类型可以通过其`await_transform`方法改变协程内`co_await`表达式的含义（稍后会详细介绍）。
 
-为了在需要时更加具体，我喜欢使用术语 Normally Awaitable 来描述在协程上下文中支持 co_await 操作符且承诺类型没有 await_transform 成员的类型。我喜欢使用术语 Contextually Awaitable 来描述由于协程的承诺类型中存在 await_transform 方法而仅在某些类型的协程上下文中支持 co_await 操作符的类型。（我对此名称持开放态度，欢迎更好的建议……）
+为了在需要时更具体地描述，我喜欢使用术语**Normally Awaitable**来描述在协程上下文中支持`co_await`操作符且其Promise类型没有`await_transform`成员的类型。我还喜欢使用术语**Contextually Awaitable**来描述由于协程的Promise类型中存在`await_transform`方法，仅在某些类型的协程上下文中支持`co_await`操作符的类型。（我对此名称持开放态度，欢迎更好的建议……）
 
-一个 Awaiter 类型是实现了作为 co_await 表达式一部分调用的三个特殊方法的类型：await_ready、await_suspend 和 await_resume。
+一个**Awaiter**类型是实现了作为`co_await`表达式一部分调用的三个特殊方法的类型：`await_ready`、`await_suspend`和`await_resume`。
 
-请注意，我在这里毫不客气地“借用”了 C# async 关键字机制中的术语 ‘Awaiter’，它通过返回具有与 C++ 的 Awaiter 概念惊人相似接口的对象的 GetAwaiter() 方法实现。有关 C# awaiters 的更多细节，请参阅这篇文章。
+请注意，我在这里毫不客气地“借用”了C# `async`关键字机制中的术语‘Awaiter’，该机制是通过返回具有类似于C++中**Awaiter**概念接口的对象的`GetAwaiter()`方法实现的。更多关于C# awaiters的细节可以参见[这篇文章](https://weblogs.asp.net/dixin/understanding-c-sharp-async-await-2-awaitable-awaiter-pattern)。
 
-请注意，一个类型可以同时是 Awaitable 类型和 Awaiter 类型。
+请注意，一种类型既可以是**Awaitable**类型，也可以是**Awaiter**类型。
 
-当编译器看到 co_await <expr> 表达式时，实际上有多种可能的转换方式，具体取决于涉及的类型。
+当编译器看到一个`co_await <expr>`表达式时，实际上它可能会根据涉及的类型转换为多种可能的形式之一。
 
 ---
 
@@ -151,15 +151,15 @@ Then, if the **Awaitable** object, `awaitable`, has an applicable `operator co_a
 If we were to encode these rules into the functions `get_awaitable()` and `get_awaiter()`, they might look something like this:
 
 ---
-编译器首先生成代码以获取被等待值的 Awaiter 对象。获取 awaiter 对象有多个步骤，这些步骤在 N4680 第 5.3.8(3) 节中有所说明。
+编译器首先生成代码以获取被等待值的**Awaiter**对象。获取awaiter对象的过程在N4680标准的5.3.8(3)节中有详细说明。
 
-假设等待协程的承诺对象类型为 P，并且 promise 是当前协程承诺对象的左值引用。
+假设当前协程的Promise对象类型为`P`，并且`promise`是当前协程的Promise对象的左值引用。
 
-如果承诺类型 P 有一个名为 await_transform 的成员，则 <expr> 首先被传递给 promise.await_transform(<expr>) 调用，以获得 Awaitable 值 awaitable。否则，如果承诺类型没有 await_transform 成员，则直接使用 <expr> 的计算结果作为 Awaitable 对象 awaitable。
+如果Promise类型`P`有一个名为`await_transform`的成员，则首先将`<expr>`传递给`promise.await_transform(<expr>)`调用以获得**Awaitable**值`awaitable`。否则，如果Promise类型没有`await_transform`成员，则直接使用`<expr>`的计算结果作为**Awaitable**对象`awaitable`。
 
-然后，如果 Awaitable 对象 awaitable 有一个适用的 operator co_await() 重载，则调用该重载以获得 Awaiter 对象。否则，使用对象 awaitable 本身作为 awaiter 对象。
+然后，如果**Awaitable**对象`awaitable`有一个适用的`operator co_await()`重载，则调用该重载以获得**Awaiter**对象。否则，直接使用对象`awaitable`作为awaiter对象。
 
-如果我们把这些规则编码到函数 get_awaitable() 和 get_awaiter() 中，它们可能看起来像这样：
+如果我们把这些规则编码到函数`get_awaitable()`和`get_awaiter()`中，它们可能看起来像这样：
 
 ---
 
@@ -190,7 +190,7 @@ decltype(auto) get_awaiter(Awaitable&& awaitable)
 So, assuming we have encapsulated the logic for turning the `<expr>` result into an **Awaiter** object into the above functions then the semantics of `co_await <expr>` can be translated (roughly) as follows:
 
 ---
-因此，假设我们将把 <expr> 结果转换为 Awaiter 对象的逻辑封装在上述函数中，则 co_await <expr> 的语义可以（大致）翻译如下：
+因此，假设我们将把 `<expr>` 结果转换为 Awaiter 对象的逻辑封装在上述函数中，则 `co_await <expr>` 的语义可以（大致）翻译如下：
 
 ---
 ```c++
@@ -252,25 +252,25 @@ The return-value of the `await_resume()` method call becomes the result of the `
 Note that if an exception propagates out of the `await_suspend()` call then the coroutine is automatically resumed and the exception propagates out of the `co_await` expression without calling `await_resume()`.
 
 ---
-await_suspend() 返回 void 的版本在调用 await_suspend() 返回时无条件地将执行控制权转移回调用者或恢复者，而返回 bool 的版本允许 awaiter 对象有条件地立即恢复协程，而不返回到调用者或恢复者。
+返回`void`的`await_suspend()`版本在`await_suspend()`调用返回时无条件地将执行控制权转移回调用者或恢复者，而返回`bool`的版本允许awaiter对象有条件地立即恢复协程而不返回到调用者或恢复者。
 
-返回 bool 的 await_suspend() 版本在 awaiter 可能启动一个有时可以同步完成的异步操作的情况下非常有用。在这种情况下，如果操作同步完成，await_suspend() 方法可以返回 false，以指示协程应立即恢复并继续执行。
+返回`bool`的`await_suspend()`版本在awaiter可能启动一个有时可以同步完成的异步操作的情况下非常有用。在这种情况下，如果操作同步完成，`await_suspend()`方法可以返回`false`以指示协程应立即恢复并继续执行。
 
-在 <suspend-coroutine> 点，编译器生成一些代码来保存协程的当前状态并准备其恢复。这包括存储 <resume-point> 的位置以及将当前寄存器中的任何值溢出到协程帧内存中。
+在`<suspend-coroutine>`点，编译器生成一些代码来保存协程的当前状态并准备其恢复。这包括存储`<resume-point>`的位置以及将当前寄存器中持有的任何值溢出到协程框架内存中。
 
-在 <suspend-coroutine> 操作完成后，当前协程被视为已挂起。你可以在 await_suspend() 调用内部观察到挂起的协程的第一个点。一旦协程被挂起，它就可以被恢复或销毁。
+在`<suspend-coroutine>`操作完成后，当前协程被认为是挂起的。你可以在`await_suspend()`调用内部观察到挂起的协程的第一个点。一旦协程被挂起，它就可以被恢复或销毁。
 
-await_suspend() 方法的责任是在操作完成后，在未来的某个时刻安排协程恢复（或销毁）。请注意，从 await_suspend() 返回 false 等同于安排协程在当前线程上立即恢复。
+`await_suspend()`方法的责任是在操作完成后在未来某个时刻安排协程进行恢复（或销毁）。请注意，从`await_suspend()`返回`false`等同于安排协程在当前线程上立即恢复。
 
-await_ready() 方法的目的是在已知操作将同步完成且不需要挂起的情况下避免 <suspend-coroutine> 操作的成本。
+`await_ready()`方法的目的是在已知操作将在不需挂起的情况下同步完成时，避免`<suspend-coroutine>`操作的成本。
 
-在 <return-to-caller-or-resumer> 点，执行控制权被转移回调用者或恢复者，弹出本地栈帧但保持协程帧存活。
+在`<return-to-caller-or-resumer>`点，执行控制权返回到调用者或恢复者，弹出本地栈帧但保持协程框架存活。
 
-当（或如果）挂起的协程最终被恢复时，执行会在 <resume-point> 继续。即在调用 await_resume() 方法以获取操作结果之前立即恢复。
+当（或如果）挂起的协程最终恢复时，执行将在`<resume-point>`恢复，即在调用`await_resume()`方法获取操作结果之前立即恢复。
 
-await_resume() 方法调用的返回值成为 co_await 表达式的结果。await_resume() 方法也可以抛出异常，在这种情况下，异常会从 co_await 表达式中传播出来。
+`await_resume()`方法调用的返回值成为`co_await`表达式的结果。`await_resume()`方法也可以抛出异常，在这种情况下，异常会从`co_await`表达式传播出去。
 
-请注意，如果异常从 await_suspend() 调用中传播出来，则协程会自动恢复，并且异常会从 co_await 表达式中传播出来，而不会调用 await_resume()。
+请注意，如果异常从`await_suspend()`调用中传播出来，则协程会自动恢复，并且异常会从`co_await`表达式传播出去，而不调用`await_resume()`。
 
 ---
 ## Coroutine Handles
@@ -282,11 +282,11 @@ This type represents a non-owning handle to the coroutine frame and can be used 
 The `coroutine_handle` type has the following (abbreviated) interface:
 
 ---
-你可能已经注意到在 co_await 表达式的 await_suspend() 调用中使用了 coroutine_handle<P> 类型。
+你可能已经注意到在 `co_await` 表达式的 `await_suspend()` 调用中使用了 `coroutine_handle<P>` 类型。
 
 该类型表示对协程帧的非拥有句柄，可用于恢复协程的执行或销毁协程帧。它还可以用于访问协程的承诺对象。
 
-coroutine_handle 类型具有以下（简化的）接口：
+`coroutine_handle` 类型具有以下（简化的）接口：
 
 ---
 
@@ -330,15 +330,15 @@ The `coroutine_handle<P>::from_promise(P& promise)` function allows reconstructi
 The `.address()` / `from_address()` functions allow converting a coroutine handle to/from a `void*` pointer. This is primarily intended to allow passing as a ‘context’ parameter into existing C-style APIs, so you might find it useful in implementing **Awaitable** types in some circumstances. However, in most cases I’ve found it necessary to pass additional information through to callbacks in this ‘context’ parameter so I generally end up storing the `coroutine_handle` in a struct and passing a pointer to the struct in the ‘context’ parameter rather than using the `.address()` return-value.
 
 ---
-在实现 Awaitable 类型时，你在 coroutine_handle 上使用的关键方法将是 .resume()，当操作完成并且你想恢复等待协程的执行时应调用此方法。对 coroutine_handle 调用 .resume() 会在 <resume-point> 重新激活一个挂起的协程。调用 .resume() 将在协程下次到达 <return-to-caller-or-resumer> 点时返回。
+在实现**Awaitable**类型时，你在`coroutine_handle`上使用的关键方法将是`.resume()`，当操作完成并且你想恢复等待的协程执行时应调用此方法。对`coroutine_handle`调用`.resume()`会在`<resume-point>`处重新激活一个挂起的协程。调用`.resume()`将在协程下次到达`<return-to-caller-or-resumer>`点时返回。
 
-.destroy() 方法销毁协程帧，调用范围内任何变量的析构函数并释放协程帧使用的内存。通常你不需要（实际上应该避免）调用 .destroy()，除非你是库编写者并在实现协程承诺类型。正常情况下，协程帧将由从协程调用返回的某种 RAII 类型拥有。因此，在没有与 RAII 对象协作的情况下调用 .destroy() 可能会导致双重销毁错误。
+`.destroy()`方法会销毁协程框架，调用范围内所有变量的析构函数并释放协程框架使用的内存。通常情况下你不需要（实际上应该避免）调用`.destroy()`，除非你是实现协程Promise类型的库作者。通常，协程框架会被某种RAII类型拥有，该类型是从协程调用返回的。因此，在没有与RAII对象合作的情况下调用`.destroy()`可能会导致双重销毁错误。
 
-.promise() 方法返回协程承诺对象的引用。然而，像 .destroy() 一样，它通常只有在你正在编写协程承诺类型时才有用。你应该将协程的承诺对象视为协程的内部实现细节。对于大多数 Normally Awaitable 类型，你应该在 await_suspend() 方法中使用 coroutine_handle<void> 作为参数类型，而不是 coroutine_handle<Promise>。
+`.promise()`方法返回对协程Promise对象的引用。然而，像`.destroy()`一样，它通常只在你编写协程Promise类型时有用。你应该将协程的Promise对象视为协程的内部实现细节。对于大多数**Normally Awaitable**类型，你应该使用`coroutine_handle<void>`作为`await_suspend()`方法的参数类型，而不是`coroutine_handle<Promise>`。
 
-coroutine_handle<P>::from_promise(P& promise) 函数允许从协程承诺对象的引用来重建协程句柄。请注意，你必须确保类型 P 完全匹配用于协程帧的具体承诺类型；尝试在具体承诺类型为 Derived 时构造 coroutine_handle<Base> 可能会导致未定义行为。
+`coroutine_handle<P>::from_promise(P& promise)`函数允许从对协程Promise对象的引用来重建协程句柄。请注意，你必须确保类型`P`与用于协程框架的具体Promise类型完全匹配；尝试在具体Promise类型为`Derived`时构造一个`coroutine_handle<Base>`可能导致未定义行为。
 
-.address() / from_address() 函数允许将协程句柄转换为 void* 指针或从 void* 指针转换回来。这主要是为了允许将其作为“上下文”参数传递到现有的 C 风格 API 中，因此在某些情况下实现 Awaitable 类型时可能会发现它有用。然而，在大多数情况下，我发现有必要通过这个“上下文”参数传递额外的信息，所以我通常会将 coroutine_handle 存储在一个结构体中，并传递指向该结构体的指针作为“上下文”参数，而不是使用 .address() 返回值。
+`.address()` / `from_address()`函数允许将协程句柄转换为/从`void*`指针。这主要是为了允许将协程句柄作为“上下文”参数传递给现有的C风格API，因此在某些情况下实现**Awaitable**类型时可能会发现它们有用。然而，在大多数情况下，我发现有必要通过这个“上下文”参数传递额外的信息，所以我通常最终会将`coroutine_handle`存储在一个结构体中，并传递指向该结构体的指针作为“上下文”参数，而不是使用`.address()`返回值。 
 
 ---
 ## Synchronisation-free async code
@@ -350,11 +350,11 @@ This allows an Awaiter object to initiate an async operation after the coroutine
 For example, by starting an async-read operation inside `await_suspend()` when the coroutine is already suspended means that we can just resume the coroutine when the operation completes without needing any thread-synchronisation to coordinate the thread that started the operation and the thread that completed the operation.
 
 ---
-co_await 操作符的一个强大设计特点是能够在协程挂起之后但在执行返回到调用者或恢复者之前执行代码。
+`co_await`操作符的一个强大设计特点是能够在协程挂起之后但在执行返回到调用者或恢复者之前执行代码。
 
-这允许 Awaiter 对象在协程已经挂起后启动一个异步操作，将挂起协程的 coroutine_handle 传递给该操作，当操作完成时（可能在另一个线程上）它可以安全地恢复协程，而无需任何额外的同步。
+这允许Awaiter对象在协程已经挂起后启动一个异步操作，将挂起协程的`coroutine_handle`传递给该操作，当操作完成时（可能在另一个线程上），它可以安全地恢复协程，而不需要任何额外的同步机制。
 
-例如，在 await_suspend() 中启动一个异步读取操作时协程已经挂起，这意味着我们可以在操作完成时直接恢复协程，而无需任何线程同步来协调启动操作的线程和完成操作的线程。
+例如，在协程已经挂起的情况下，通过在`await_suspend()`中启动一个异步读取操作，意味着我们可以在操作完成时直接恢复协程，而不需要任何线程同步来协调启动操作的线程和完成操作的线程。 
 
 ---
 
@@ -385,11 +385,11 @@ The first thing the coroutine will do when it resumes is call `await_resume()` t
 So within the `await_suspend()` method, once it’s possible for the coroutine to be resumed concurrently on another thread, you need to make sure that you avoid accessing `this` or the coroutine’s `.promise()` object because both could already be destroyed. In general, the only things that are safe to access after the operation is started and the coroutine is scheduled for resumption are local variables within `await_suspend()`.
 
 ---
-在利用这种方法时，有一件事需要非常小心：一旦你启动了将协程句柄发布到其他线程的操作，另一个线程可能会在 await_suspend() 返回之前在另一个线程上恢复协程，并且可能与 await_suspend() 方法的其余部分并发执行。
+在利用这种方法时，有一件事需要**非常**小心：一旦你启动了将协程句柄发布到其他线程的操作，另一个线程可能会在`await_suspend()`返回之前恢复协程，并且可能与`await_suspend()`方法的其余部分并发执行。
 
-当协程恢复时，它首先会调用 await_resume() 来获取结果，然后通常会立即销毁 Awaiter 对象（即 await_suspend() 调用中的 this 指针）。接着，协程可能会运行到完成，销毁协程和承诺对象，所有这一切都可能在 await_suspend() 返回之前发生。
+当协程恢复时，它首先会调用`await_resume()`以获取结果，然后通常会立即销毁**Awaiter**对象（即`await_suspend()`调用中的`this`指针）。协程随后可能会继续运行直到完成，销毁协程和Promise对象，所有这一切都可能在`await_suspend()`返回之前发生。
 
-因此，在 await_suspend() 方法中，一旦有可能在另一个线程上并发恢复协程，你需要确保避免访问 this 或协程的 .promise() 对象，因为这两者可能已经被销毁。一般来说，在操作开始并且协程被安排恢复之后，唯一安全访问的是 await_suspend() 内的局部变量。
+因此，在`await_suspend()`方法中，一旦有可能在另一个线程上并发恢复协程，你需要确保避免访问`this`或协程的`.promise()`对象，因为这两者可能已经被销毁。一般来说，在启动操作并将协程安排为恢复之后，唯一安全访问的是`await_suspend()`中的局部变量。
 
 ---
 
@@ -427,7 +427,7 @@ By placing the per-operation state in the **Awaiter** object we can effectively 
 
 Ultimately, the coroutine frame may still be allocated on the heap. However, once allocated, a coroutine frame can be used to execute many asynchronous operations with only that single heap allocation.
 
-If you think about it, the coroutine frame acts as a kind of really high-performance arena memory allocator. The compiler figures out at compile time the total arena size it needs for all local variables and is then able to allocate this memory out to local variables as required with zero overhead! Try beating that with a custom allocator ;)
+If you think about it, the coroutine frame acts as a kind of really high-performance arena memory allocator. The compiler figures out at compile time the total arena size it needs for all local variables and is then able to allocate this memory out to local variables as required with zero overhead! Try beating that with a custom allocator ;
 
 ---
 异步操作通常需要存储一些操作状态，以跟踪操作的进度。这种状态一般需要在整个操作期间保持，并且只有在操作完成后才能释放。
@@ -442,7 +442,7 @@ If you think about it, the coroutine frame acts as a kind of really high-perform
 
 最终，协程框架本身可能仍然需要在堆上分配。但是，一旦分配了协程框架，就可以仅用那一次堆分配来执行多个异步操作。
 
-实际上，协程框架充当了一种高性能的区域内存分配器。编译器在编译时计算出所有局部变量所需的总区域大小，然后能够根据需要以零开销将这块内存分配给局部变量！尝试用自定义分配器超越这个效果吧 ;)
+实际上，协程框架充当了一种高性能的区域内存分配器。编译器在编译时计算出所有局部变量所需的总区域大小，然后能够根据需要以零开销将这块内存分配给局部变量！尝试用自定义分配器超越这个效果吧 ;
 
 ---
 
@@ -459,13 +459,13 @@ Ideally we’d also like to make it `noexcept`, require no heap allocations and 
 Example usage should look something like this:
 
 ---
-现在我们已经介绍了co_await操作符的许多机制，我想通过实现一个基本的可等待同步基元——异步手动重置事件（asynchronous manual-reset event），来展示如何将这些知识付诸实践。
+现在我们已经介绍了`co_await`操作符的许多机制，我想通过实现一个基本的可等待同步原语来展示如何将这些知识付诸实践：一个异步手动重置事件（asynchronous manual-reset event）。
 
-这个事件的基本要求是它需要能够被多个并发执行的协程等待，并且当被等待时，需要挂起等待的协程直到某个线程调用了.set()方法，在这一点上任何等待的协程都会恢复。如果在某个线程已经调用了.set()之后，则协程应该继续执行而无需挂起。
+这个事件的基本要求是它需要能够被多个并发执行的协程**Awaitable**，并且在被等待时需要挂起等待的协程，直到某个线程调用了`.set()`方法，此时任何等待的协程都会被恢复。如果某个线程已经调用了`.set()`，则协程应继续执行而不挂起。
 
-理想情况下，我们还希望它是noexcept的，不需要堆分配，并且有一个无锁的实现。
+理想情况下，我们还希望使其成为`noexcept`，不需要堆分配，并且有一个无锁的实现。
 
-编辑 2017/11/23：添加了async_manual_reset_event的使用示例
+**编辑 2017/11/23：添加了 `async_manual_reset_event` 的使用示例**
 
 使用示例应该看起来像这样：
 
@@ -565,9 +565,9 @@ Here we have a fairly straight-forward and simple interface. The main thing to n
 Let’s define the `awaiter` type now.
 
 ---
-我们这里有一个相当直接且简单的接口。此时需要注意的主要一点是，它有一个operator co_await()方法，该方法返回一个尚未定义的类型awaiter。
+我们这里有一个相当直接且简单的接口。此时需要注意的主要一点是，它有一个`operator co_await()`方法，该方法返回一个尚未定义的类型`awaiter`。
 
-现在让我们定义awaiter类型。
+现在让我们定义`awaiter`类型。
 
 ---
 
@@ -695,9 +695,9 @@ Now that we have defined the `awaiter` type, let’s go back and look at the imp
 First, the constructor. It needs to initialise to either the ‘not set’ state with the empty list of waiters (ie. `nullptr`) or initialise to the ‘set’ state (ie. `this`).
 
 ---
-现在我们已经定义了awaiter类型，让我们回到async_manual_reset_event方法的实现上来。
+现在我们已经定义了`awaiter`类型，让我们回到`async_manual_reset_event`方法的实现上来。
 
-首先，构造函数。它需要初始化为‘未设置’状态，此时等待者列表为空（即nullptr），或者初始化为‘已设置’状态（即this）。
+首先，构造函数。它需要初始化为‘未设置’状态，此时等待者列表为空（即`nullptr`），或者初始化为‘已设置’状态（即`this`）。
 
 ---
 
@@ -711,7 +711,7 @@ async_manual_reset_event::async_manual_reset_event(
 Next, the `is_set()` method is pretty straight-forward - it’s ‘set’ if it has the special value `this`:
 
 ---
-接下来，is_set()方法非常直接——如果它具有特殊值this，则表示事件已设置：
+接下来，`is_set()`方法非常直接——如果它具有特殊值`this`，则表示事件已设置：
 
 ---
 
