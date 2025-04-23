@@ -1195,11 +1195,31 @@ The “noop coroutine handle” is named as such because its `.resume()` impleme
 
 If the `await_suspend()` method returns the `std::noop_coroutine()` handle then instead of transferring execution to the next coroutine, it transfers execution back to the caller of `std::coroutine_handle::resume()`.
 
+---
+有了协程的对称转移形式，每次协程挂起时都会对称地恢复另一个协程。只要还有另一个协程可以恢复这很好，但有时候我们没有另一个协程可以执行，只需要挂起并让执行返回到 `std::coroutine_handle::resume()` 的调用者。
+
+`await_suspend()` 的返回 `void` 和返回 `bool` 两种形式都允许协程挂起并从 `std::coroutine_handle::resume()` 返回，那么使用对称转移形式时我们如何做到这一点呢？
+
+答案是使用特殊的内置 `std::coroutine_handle`，称为“空操作协程句柄”，它由函数 `std::noop_coroutine()` 生成。
+
+“空操作协程句柄”之所以这样命名，是因为它的 `.resume()` 实现就是这样立即返回。也就是说，恢复协程是一个空操作。通常其实施包含单一的 `ret` 指令。
+
+如果 `await_suspend()` 方法返回的是 `std::noop_coroutine()` 句柄，则不是将执行转移到下一个协程，而是将执行转移回调用 `std::coroutine_handle::resume()` 的调用者。
+
+---
+
 ### Representing the other flavours of `await_suspend()`
 
 With this information in-hand we can now show how to represent the other flavours of `await_suspend()` using the symmetric-transfer form.
 
 The `void`-returning form
+
+---
+有了这些信息，我们现在可以展示如何使用对称转移形式表示 `await_suspend()` 的其他形式。
+
+返回 `void` 的形式。
+
+---
 
 ```c++
 void my_awaiter::await_suspend(std::coroutine_handle<> h) {
@@ -1209,6 +1229,11 @@ void my_awaiter::await_suspend(std::coroutine_handle<> h) {
 ```
 
 can also be written using both the `bool`-returning form:
+
+---
+也可以使用返回 `bool` 的形式来写： 
+
+---
 
 ```c++
 bool my_awaiter::await_suspend(std::coroutine_handle<> h) {
@@ -1220,6 +1245,10 @@ bool my_awaiter::await_suspend(std::coroutine_handle<> h) {
 
 and can be written using the symmetric-transfer form:
 
+---
+并且可以使用对称转移形式来写：
+
+---
 ```c++
 std::noop_coroutine_handle my_awaiter::await_suspend(
     std::coroutine_handle<> h) {
@@ -1230,6 +1259,11 @@ std::noop_coroutine_handle my_awaiter::await_suspend(
 ```
 
 The `bool`-returning form:
+
+---
+返回 bool 的形式：
+
+---
 
 ```c++
 bool my_awaiter::await_suspend(std::coroutine_handle<> h) {
@@ -1248,6 +1282,11 @@ bool my_awaiter::await_suspend(std::coroutine_handle<> h) {
 ```
 
 can also be written using the symmetric-transfer form:
+
+---
+也可以使用对称转移形式来写：
+
+---
 
 ```c++
 std::coroutine_handle<> my_awaiter::await_suspend(std::coroutine_handle<> h) {
@@ -1288,6 +1327,29 @@ Now, it’s possible that we might be able to get equivalent performance out of 
 
 For example:
 
+---
+所以我们为什么在有了对称转移形式的情况下仍然保留了返回 `void` 和 `bool` 的 `await_suspend()` 形式？
+
+原因部分是历史的，部分是实用的，还有部分是性能的。
+
+返回 `void` 的版本可以通过从 `await_suspend()` 返回 `std::noop_coroutine_handle` 类型来完全替代，因为这相当于向编译器发出信号，表明协程无条件地将执行转移到 `std::coroutine_handle::resume()` 的调用者。
+
+之所以保留它，部分是因为在引入对称转移之前它已经被使用，部分是因为对于无条件挂起的情况，返回 `void` 的形式会导致更少的代码/打字。
+
+然而，返回 `bool` 的版本在某些情况下相比对称转移形式，在优化方面可能会有一些优势。
+
+考虑这样一个情况：我们有一个返回 `bool` 的 `await_suspend()` 方法，它定义在另一个翻译单元中。在这种情况下，编译器可以在等待的协程中生成代码，该代码会挂起当前协程，然后通过仅仅执行下一段代码在 `await_suspend()` 返回后有条件地恢复它。如果 `await_suspend()` 返回 `false`，它确切知道接下来要执行哪一段代码。
+
+使用对称转移形式，我们仍然需要表示相同的结果；要么返回给调用者/恢复，要么恢复当前协程。而不是返回 `true` 或 `false`，我们需要返回 `std::noop_coroutine()` 或当前协程的句柄。我们可以将这两个句柄强制转换为 `std::coroutine_handle<void>` 类型并返回它。
+
+然而，现在由于 `await_suspend()` 方法定义在另一个翻译单元中，编译器无法看到返回的句柄指的是哪个协程，因此当它恢复协程时，现在必须执行一些更昂贵的间接调用，并可能进行一些分支以恢复协程，相比之下，返回 `bool` 的情况只需要一个分支。
+
+现在，有可能有一天我们能够让对称转移版本获得等效的性能。例如，我们可以编写代码，使得 `await_suspend()` 被定义为内联但调用一个定义为非内联的返回 `bool` 的方法，然后根据情况返回适当的句柄。
+
+例如：
+
+---
+
 ```c++
 struct my_awaiter {
   bool await_ready();
@@ -1318,6 +1380,17 @@ So, for now, the general rule is:
 - If you need to conditionally return to `.resume()` caller or resume current coroutine use the `bool`-returning flavour.
 - If you need to resume another coroutine use the symmetric-transfer flavour.
 
+---
+然而，当前的编译器（例如 Clang 10）还不能将此优化为与返回 `bool` 的版本一样高效的代码。话虽如此，除非你在非常紧凑的循环中等待这个操作，否则你可能不会注意到这种差异。
+
+所以，目前的一般规则是：
+
+- 如果你需要无条件地返回到 `.resume()` 的调用者，使用返回 `void` 的形式。
+- 如果你需要有条件地返回到 `.resume()` 的调用者或恢复当前协程，使用返回 `bool` 的形式。
+- 如果你需要恢复另一个协程，使用对称转移形式。
+
+---
+
 # Rounding out
 
 The new symmetric transfer capability added to coroutines for C++20 makes it much easier to write coroutines that recursively resume each other without fear of running into stack-overflow. This capability is key to making efficient and safe async coroutine types, such as the `task` one presented here.
@@ -1326,6 +1399,20 @@ This ended up being a much longer than expected post on symmetric transfer. If y
 
 In the next post, I’ll dive into understanding how the compiler transforms a coroutine function into a state-machine.
 
+---
+新增到 C++20 协程中的对称转移能力使得编写递归恢复彼此的协程变得更加容易，而不用担心遇到栈溢出的问题。这种能力是实现高效且安全的异步协程类型（如这里介绍的 `task`）的关键。
+
+这篇文章最终比预期的要长得多，讨论了对称转移。如果你看到了这里，感谢你的坚持！希望你发现它是有用的。
+
+在下一篇文章中，我将深入探讨编译器如何将协程函数转换为状态机。
+
+---
+
 # Thanks
 
 Thanks to Eric Niebler and Corentin Jabot for providing feedback on drafts of this post.
+
+---
+感谢 Eric Niebler 和 Corentin Jabot 对本文草稿提供的反馈。
+
+---
