@@ -1,0 +1,35 @@
+#!/bin/sh
+
+if [ $# != 1 ]; then
+	echo "param count["$#"] err 1, format as ./service_util type[start | stop | restart]"
+	exit
+fi
+
+service_array=( test )
+
+if [ $1 = "start" ]; then
+	for exename in ${service_array[*]}
+	do
+		./lys ${exename} &	
+	done
+elif [ $1 = "restart" ]; then
+	for exename in ${service_array[*]}
+	do
+		./lyk ${exename} &	
+		./lys ${exename} &	
+	done	
+elif [ $1 = "stop" ]; then
+	Pid=`ps -ef | grep ./lys | grep -v "grep" | awk -F ' ' '{print $2}'`
+	kill -9 ${Pid}
+	for exename in ${service_array[*]}
+	do
+		Pid=`ps -ef | grep ./${exename} | grep -v "grep" | awk -F ' ' '{print $2}'`
+    if [ -n ${Pid} ]; then
+		  kill -9 ${Pid}	
+    fi
+	done
+else
+	echo "param err, format as ./service_util type[start | stop | restart]"
+	exit
+fi	
+

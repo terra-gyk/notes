@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if [ $# != 1 ]; then
+	echo "param count["$#"] err 1"
+	exit
+fi
+Pid=`ps -ef | grep $1 | grep -v "grep" | awk -F ' ' '{print $2}'`
+kill -9 ${Pid}

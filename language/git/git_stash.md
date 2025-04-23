@@ -50,3 +50,125 @@ git stash drop stash@{0}
 如果你想清空整个暂存栈，可以使用 git stash clear 命令：
 git stash clear
 通过以上步骤，你可以在不提交 f1 分支修改的情况下安全地切换到 f2 分支进行开发，并且后续还能方便地恢复 f1 分支的修改继续工作。
+
+
+
+
+
+---
+`git stash` 是 Git 中用于临时保存工作目录和暂存区修改的命令，尤其适合在需要切换分支但不想提交当前未完成工作的场景。它将修改保存到一个栈中，之后可以随时恢复。
+
+
+### **基本用法**
+#### 1. **保存当前修改**
+```bash
+git stash [save "描述信息"]
+```
+- 会保存工作目录（未暂存）和暂存区（已 `add`）的修改。
+- **示例**：
+  ```bash
+  git stash save "WIP: 临时保存未完成的功能"
+  ```
+
+#### 2. **查看 stash 列表**
+```bash
+git stash list
+```
+- 输出类似：
+  ```
+  stash@{0}: WIP on feature: 123456 Add new feature
+  stash@{1}: On main: Fix typo
+  ```
+
+#### 3. **恢复 stash**
+```bash
+git stash apply [stash@{n}]  # 恢复但保留 stash
+git stash pop [stash@{n}]   # 恢复并删除 stash
+```
+- **示例**：恢复最近的 stash：
+  ```bash
+  git stash pop
+  ```
+
+#### 4. **删除 stash**
+```bash
+git stash drop [stash@{n}]  # 删除指定 stash
+git stash clear             # 删除所有 stash
+```
+
+
+### **进阶用法**
+#### 1. **仅保存工作目录（不保存暂存区）**
+```bash
+git stash --keep-index
+```
+- 暂存区的修改会保留，仅保存未暂存的内容。
+
+#### 2. **保存特定文件**
+```bash
+git stash push -m "只保存部分文件" <文件路径>
+```
+- **示例**：只保存 `src/module/` 目录的修改：
+  ```bash
+  git stash push -m "部分保存" src/module/
+  ```
+
+#### 3. **恢复到指定分支**
+```bash
+git stash branch <新分支名> [stash@{n}]
+```
+- 创建新分支并应用 stash，然后删除该 stash。
+
+
+### **常见场景**
+#### 1. **切换分支前临时保存**
+```bash
+# 当前在 feature 分支工作，未完成但需切换到 main
+git stash
+git checkout main
+# 在 main 分支完成任务后，回到 feature 恢复工作
+git checkout feature
+git stash pop
+```
+
+#### 2. **解决 stash 冲突**
+- 恢复 stash 时可能出现冲突，需手动解决：
+  ```bash
+  git stash pop  # 出现冲突
+  # 手动编辑冲突文件
+  git add <冲突文件>
+  git stash drop  # 冲突解决后删除 stash
+  ```
+
+
+### **相关命令**
+| 命令               | 描述                                  |
+|--------------------|---------------------------------------|
+| `git stash show`   | 查看 stash 的修改摘要                  |
+| `git stash show -p` | 查看 stash 的完整补丁                 |
+| `git stash create` | 创建 stash 但不保存到栈（返回 commit ID） |
+| `git stash store`  | 将 commit ID 保存到 stash 栈           |
+
+
+### **注意事项**
+1. **stash 不保存未跟踪文件**  
+   若需保存未跟踪文件，使用：
+   ```bash
+   git stash -u  # 包含未跟踪文件
+   git stash -a  # 包含所有文件（包括忽略文件）
+   ```
+
+2. **stash 是本地操作**  
+   stash 不会同步到远程仓库，仅存在于本地。
+
+3. **定期清理 stash**  
+   不再需要的 stash 应及时删除，避免栈堆积过多。
+
+
+### **总结**
+`git stash` 是处理临时工作的高效工具，尤其适合：
+- 切换分支前保存未完成的修改。
+- 尝试新想法但不想创建提交。
+- 保存部分文件的修改。
+
+合理使用 `git stash` 可以保持提交历史的整洁，提高开发效率。

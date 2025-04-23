@@ -4,9 +4,11 @@
 #include <librdkafka/rdkafkacpp.h>
 using namespace std;
 
-class ExampleDeliveryReportCb : public RdKafka::DeliveryReportCb {
+class ExampleDeliveryReportCb : public RdKafka::DeliveryReportCb 
+{
 public:
-    void dr_cb(RdKafka::Message &message) {
+    void dr_cb(RdKafka::Message &message) 
+    {
         /* If message.err() is non-zero the message delivery failed permanently
         * for the message. */
         if (message.err())
@@ -18,7 +20,8 @@ public:
     }
 };
 
-int main(int argc, char **argv) {
+int kafka_test(int argc, char **argv) 
+{
 
     std::string brokers = "172.26.165.12:9092";
     std::string topic = "test";
@@ -30,15 +33,16 @@ int main(int argc, char **argv) {
     * host or host:port (default port 9092).
     * librdkafka will use the bootstrap brokers to acquire the full
     * set of brokers from the cluster. */
-    if (conf->set("bootstrap.servers", brokers, errstr) !=
-        RdKafka::Conf::CONF_OK) {
+    if (conf->set("bootstrap.servers", brokers, errstr) != RdKafka::Conf::CONF_OK) 
+    {
         std::cerr << errstr << std::endl;
         exit(1);
     }
 
     ExampleDeliveryReportCb ex_dr_cb;
 
-    if (conf->set("dr_cb", &ex_dr_cb, errstr) != RdKafka::Conf::CONF_OK) {
+    if (conf->set("dr_cb", &ex_dr_cb, errstr) != RdKafka::Conf::CONF_OK) 
+    {
         std::cerr << errstr << std::endl;
         exit(1);
     }
@@ -47,7 +51,8 @@ int main(int argc, char **argv) {
     * Create producer instance.
     */
     RdKafka::Producer *producer = RdKafka::Producer::create(conf, errstr);
-    if (!producer) {
+    if (!producer) 
+    {
         std::cerr << "Failed to create producer: " << errstr << std::endl;
         exit(1);
     }
@@ -61,7 +66,8 @@ int main(int argc, char **argv) {
 
     for (std::string line; true && std::getline(std::cin, line);) 
     {
-        if (line.empty()) {
+        if (line.empty()) 
+        {
             producer->poll(0);
             continue;
         }
@@ -79,17 +85,19 @@ int main(int argc, char **argv) {
             /* Message headers, if any */
             NULL);
 
-        if (err != RdKafka::ERR_NO_ERROR) {
+        if (err != RdKafka::ERR_NO_ERROR) 
+        {
             std::cerr << "% Failed to produce to topic " << topic << ": " <<
                 RdKafka::err2str(err) << std::endl;
 
-            if (err == RdKafka::ERR__QUEUE_FULL) {
+            if (err == RdKafka::ERR__QUEUE_FULL) 
+            {
                 producer->poll(1000/*block for max 1000ms*/);
                 goto retry;
             }
-
         }
-        else {
+        else 
+        {
             std::cerr << "% Enqueued message (" << line.size() << " bytes) " <<
                 "for topic " << topic << std::endl;
         }
