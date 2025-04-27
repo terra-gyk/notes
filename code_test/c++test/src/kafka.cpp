@@ -18,7 +18,7 @@ public:
     }
 };
 
-int main(int argc, char **argv) {
+int kafka_test(int argc, char **argv) {
 
     std::string brokers = "172.26.165.12:9092";
     std::string topic = "test";
