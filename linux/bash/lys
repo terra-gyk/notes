@@ -1,0 +1,39 @@
+#!/bin/sh
+
+if [ ! -d log ]
+then
+	mkdir -p log
+fi
+
+exename=$1
+# 假如服务需要传入配置文件的参数
+execonfigfile=${exename}_Linux.ini
+echo "Start "${exename}
+
+# 设置链接库路径
+cd Libs/
+LibPath=`pwd`
+echo ${LibPath}
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LibPath}
+
+ulimit -c unlimited
+
+# check server
+while [ 1 ]
+do
+    var=$(ps -ef | grep ./${exename} | grep -v "grep" |  wc -l)
+    if [ ${var} = "0" ]; then
+        timestr=`date "+%Y-%m-%d %H:%M:%S"`
+        echo ${timestr}" start "${exename}"..."
+        
+        nohup ./${exename} ${execonfigfile} >> ${exename}.out 2>&1 &
+        
+        sleep 60
+    else
+        #echo "The server "${exename}" is now runing!"
+        sleep 10
+    fi
+  
+done
+
+echo "Start end"
