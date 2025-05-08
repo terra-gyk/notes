@@ -4,6 +4,8 @@ set(PROJECT test)
 
 project(${PROJECT})
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_library(zookeeper_lib zookeeper_mt)
 
 if(NOT zookeeper_lib)
