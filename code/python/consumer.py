@@ -1,5 +1,4 @@
 import pika
-import pika
 
 # 设置用户名和密码
 credentials = pika.PlainCredentials('terra', 'kkly2021.com@@')

@@ -1,0 +1,136 @@
+# 因为 gitignore 忽略了 .conf 文件，所以这个文件正确的后缀应该是 .conf 
+user  root;
+worker_processes 4;
+
+#worker_rlimit_nofile 51200;
+worker_rlimit_nofile 655350;
+
+events {
+    use epoll;
+    worker_connections 102400;
+    multi_accept on;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /opt/nginx/access.log  main;
+    error_log   /opt/nginx/error.log;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    client_max_body_size 300M;
+    
+    #gzip  on;
+
+    server {
+        listen       9999;
+        server_name  localhost;
+        root /opt/download/;
+
+        location /api/file/down {
+            limit_except GET { 
+                deny all; 
+            }
+            alias /opt/download;
+            autoindex on;
+        }
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+    
+    server {
+        listen       6023 ssl;
+        server_name  localhost;
+
+        ssl_certificate      /opt/certain/certian.com.pem;
+        ssl_certificate_key  /opt/certain/certian.com.key;
+
+        ssl_session_cache    shared:SSL:1m;
+        ssl_session_timeout  5m;
+
+        ssl_ciphers  HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers  on;
+
+        # 定义验证服务的位置
+        location = /verify {
+            internal;  # 仅允许 Nginx 内部调用
+            proxy_pass http://verify_server/verify/code_auth;  # 转发请求到验证服务
+            proxy_pass_request_body off;  # 不转发请求体
+            proxy_set_header Content-Length "";
+            proxy_set_header X-Original-Method $request_method;  # 传递原始请求方法（可选）
+            proxy_set_header X-Original-URI $request_uri;  # 将原始请求的 URI 传递给验证服务
+            proxy_set_header X-Original-Real-IP $remote_addr;
+
+            # 设置超时时间
+            proxy_connect_timeout 2s;  # 连接超时时间
+            proxy_read_timeout 5s;     # 读取超时时间
+
+            # 如果验证服务返回 500 错误，将其视为 401 错误
+            error_page 500 501 502 503 504 =401 @auth_failure;
+        }
+
+        # 认证失败重定向
+        location @auth_failure {
+            root /opt/web_dir/error_page/;
+            rewrite ^ /error.html break;
+            try_files $uri =404;
+        }
+
+        # 静态资源
+        location /router {
+            alias /opt/web_dir/bot_web/;
+            try_files $uri $uri/ /router/index.html;
+            index index.html index.htm;
+            proxy_set_header Token $http_Token;
+        }
+
+        # 主页面
+        location /router/some_page {
+            auth_request /verify;  # 调用验证服务进行校验
+            # 验证失败时的错误处理
+            auth_request_set $auth_status $upstream_status;
+            error_page 401 = @auth_failure;
+
+            alias /opt/web_dir/bot_web/;
+            try_files $uri $uri/ /router/index.html;
+            index index.html index.htm;
+            proxy_set_header Token $http_Token;
+        }
+
+        location /router/console {
+            rewrite ^/router/(.*)$ /$1 break;
+            proxy_pass http://console_server;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+
+    upstream verify_server {
+        # 主服务器
+        server 127.0.0.1:20060 weight=10 max_fails=3 fail_timeout=30s;
+        # 备用服务器
+        server 127.0.0.1:20060 backup;
+    }
+
+    upstream console_server {
+        # 主服务器
+        server 127.0.0.1:20060 weight=10 max_fails=3 fail_timeout=30s;
+        # 备用服务器
+        server 127.0.0.1:20060 backup;
+    }
+}
