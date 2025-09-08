@@ -1,7 +1,7 @@
 {
   // 用于在关闭 go mod 的情况下，使用 vendor 来配置依赖
   "go.useLanguageServer": true,
-  "go.gopath": "/opt/work_space/lanyou/pv-lanyoubot",
+  "go.gopath": "/opt/work_space/project/path",
   "gopls": {
     "env": {
       "GO111MODULE": "off"
